@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- HERO -->
+<section id="beranda" class="hero">
+  <div class="container">
+    <div class="row align-items-center gy-5">
+      <div class="col-lg-7 reveal">
+        <span class="badge-soft"><i class="bi bi-stars"></i> Regresi Linear Sederhana</span>
+        <h1 class="display-4 mt-3">Perkirakan <span class="text-gradient">Tip Restoran</span> dari Total Tagihan</h1>
+        <p class="lead text-muted-soft mt-3">
+          Masukkan total tagihan, lalu model yang dilatih dari {{ stats.rows }} transaksi restoran
+          akan memperkirakan besar tip yang wajar.
+        </p>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+          <a href="#prediksi" class="btn btn-brand"><i class="bi bi-calculator me-2"></i>Coba Prediksi</a>
+          <a href="#model" class="btn btn-ghost"><i class="bi bi-cpu me-2"></i>Lihat Model</a>
+        </div>
+      </div>
+
+      <div class="col-lg-5 reveal">
+        <div class="receipt float-y">
+          <div class="receipt-title">TIPSENSE CAFE</div>
+          <div class="receipt-sub">Struk Contoh</div>
+          <hr class="receipt-line">
+          <div class="receipt-row"><span>Total Tagihan</span><span id="heroBill">$ 20.00</span></div>
+          <div class="receipt-row"><span>Estimasi Tip</span><span id="heroTip" class="receipt-tip">$ --</span></div>
+          <hr class="receipt-line">
+          <div class="receipt-foot">Terima kasih sudah berkunjung</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PREDIKSI -->
+<section id="prediksi">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">Prediksi</span>
+      <h2>Hitung Tip Kamu</h2>
+      <p class="text-muted-soft">Geser <em>slider</em> atau ketik angka total tagihan.</p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-6 reveal">
+        <div class="card-soft p-4 h-100">
+          <form id="predictForm" novalidate>
+            <label for="billInput" class="form-label fw-semibold">Total Tagihan (USD)</label>
+            <div class="input-group input-group-lg">
+              <span class="input-group-text">$</span>
+              <input type="number" class="form-control" id="billInput" value="25" min="0" step="0.01" inputmode="decimal" placeholder="contoh: 25.50">
+            </div>
+            <div id="billError" class="field-error d-none" role="alert"></div>
+
+            <input type="range" class="form-range mt-4" id="billRange" min="1" max="60" step="0.5" value="25" aria-label="Slider total tagihan">
+            <div class="d-flex justify-content-between small text-muted-soft"><span>$1</span><span>$60</span></div>
+
+            <div class="mt-4">
+              <div class="small text-muted-soft mb-2">Contoh cepat</div>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="chip" data-bill="10">$10</button>
+                <button type="button" class="chip" data-bill="20">$20</button>
+                <button type="button" class="chip" data-bill="35">$35</button>
+                <button type="button" class="chip" data-bill="50">$50</button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-brand btn-lg w-100 mt-4" id="predictBtn">
+              <span class="btn-label"><i class="bi bi-magic me-2"></i>Hitung Tip</span>
+              <span class="btn-loading d-none"><span class="spinner-border spinner-border-sm me-2"></span>Menghitung...</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-lg-6 reveal">
+        <div class="card-soft p-4 h-100 result-card">
+          <div id="resultEmpty" class="text-center py-5">
+            <div class="empty-icon"><i class="bi bi-receipt"></i></div>
+            <p class="text-muted-soft mt-3 mb-0">Hasil prediksi akan muncul di sini.</p>
+          </div>
+
+          <div id="resultBox" class="d-none">
+            <div class="small text-muted-soft">Estimasi tip untuk tagihan <strong id="resBill">$0</strong></div>
+            <div class="tip-value" id="resTip">$0.00</div>
+
+            <div class="d-flex justify-content-between small mt-3">
+              <span class="text-muted-soft">Persentase dari tagihan</span>
+              <strong id="resPercent">0%</strong>
+            </div>
+            <div class="progress mt-1" role="progressbar" aria-label="Persentase tip">
+              <div class="progress-bar" id="resBar" style="width:0%"></div>
+            </div>
+
+            <div class="range-box mt-4">
+              <i class="bi bi-arrows-expand-vertical"></i>
+              <div>
+                <div class="small text-muted-soft">Kisaran wajar (&plusmn; RMSE)</div>
+                <strong id="resRange">$0 - $0</strong>
+              </div>
+            </div>
+            <div class="calc-box mt-3">
+              <div class="small text-muted-soft mb-1">Hitung manual (persamaan model)</div>
+              <div class="calc-eq" id="resCalc"></div>
+            </div>
+            <div id="resWarn" class="warn-box d-none mt-3">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <span>Tagihan ini di luar rentang data latih (${{ '%.2f'|format(metrics.x_min) }} - ${{ '%.2f'|format(metrics.x_max) }}), jadi prediksinya kurang andal.</span>
+            </div>
+          </div>
+
+          <div id="historyWrap" class="mt-4 d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small fw-semibold">Riwayat prediksi</span>
+              <button type="button" class="btn-link-sm" id="clearHistory">Hapus</button>
+            </div>
+            <ul class="history" id="historyList"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GRAFIK -->
+<section id="grafik">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">Visualisasi</span>
+      <h2>Sebaran Data dan Garis Regresi</h2>
+      <p class="text-muted-soft">Semakin besar tagihan, cenderung semakin besar tip. Titik prediksimu akan muncul di sini.</p>
+    </div>
+    <div class="card-soft p-3 p-md-4 reveal">
+      <div class="chart-wrap"><canvas id="regChart"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- CARA KERJA -->
+<section id="cara-kerja" data-b0="{{ metrics.intercept }}" data-b1="{{ metrics.coef }}">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">Cara Kerja</span>
+      <h2>Bagaimana Model Menemukan Garis Terbaik?</h2>
+      <p class="text-muted-soft">Coba geser sendiri garisnya dan lihat error-nya berubah.</p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-5 reveal">
+        <div class="card-soft p-4 h-100">
+          <div class="eq mb-3">y = &beta;<sub>0</sub> + &beta;<sub>1</sub>x + &epsilon;</div>
+          <ul class="sym-list">
+            <li><strong>y</strong> = tip (variabel dependen)</li>
+            <li><strong>x</strong> = total_bill (variabel independen)</li>
+            <li><strong>&beta;<sub>0</sub></strong> = intersep, tip prediksi saat tagihan 0</li>
+            <li><strong>&beta;<sub>1</sub></strong> = koefisien (<em>slope</em>), kenaikan tip per kenaikan $1 tagihan</li>
+            <li><strong>&epsilon;</strong> = <em>error</em>, selisih tip aktual dan tip prediksi</li>
+          </ul>
+          <ol class="steps">
+            <li>Tarik sebuah garis lurus melalui sebaran data.</li>
+            <li>Ukur seberapa jauh garis dari titik-titik data memakai <em>cost function</em> (MSE).</li>
+            <li>Ubah &beta;<sub>0</sub> dan &beta;<sub>1</sub> sedikit demi sedikit ke arah yang menurunkan error (<em>gradient descent</em>), seperti turun ke lembah, sampai error paling kecil.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="col-lg-7 reveal">
+        <div class="card-soft p-4 h-100">
+          <div class="chart-wrap chart-sm"><canvas id="playChart"></canvas></div>
+
+          <div class="row g-3 mt-2">
+            <div class="col-sm-6">
+              <label class="form-label small fw-semibold" for="b0Range">&beta;<sub>0</sub> (intersep): <span id="b0Val">0.000</span></label>
+              <input type="range" class="form-range" id="b0Range" min="0" max="3" step="0.001" value="0">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label small fw-semibold" for="b1Range">&beta;<sub>1</sub> (koefisien): <span id="b1Val">0.0000</span></label>
+              <input type="range" class="form-range" id="b1Range" min="0" max="0.3" step="0.0001" value="0">
+            </div>
+          </div>
+
+          <div class="row g-3 mt-1 text-center">
+            <div class="col-6"><div class="mini-stat"><span>MSE garismu</span><strong id="playMse">-</strong></div></div>
+            <div class="col-6"><div class="mini-stat"><span>MSE model terbaik</span><strong id="bestMse">-</strong></div></div>
+          </div>
+
+          <div id="playMsg" class="play-msg mt-3"></div>
+
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="button" class="chip" id="playReset"><i class="bi bi-arrow-counterclockwise me-1"></i>Mulai dari awal</button>
+            <button type="button" class="chip" id="playBest"><i class="bi bi-trophy me-1"></i>Pakai nilai terbaik</button>
+          </div>
+          <div class="small text-muted-soft mt-3">MSE dihitung pada seluruh data. Garis putus-putus adalah garis model.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODEL -->
+<section id="model">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">Tentang Model</span>
+      <h2>Seberapa Baik Modelnya?</h2>
+      <p class="text-muted-soft">Dievaluasi pada {{ metrics.n_test }} data uji (dari {{ metrics.n_total }} data).</p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-sm-6 col-lg-3 reveal">
+        <div class="card-soft metric h-100">
+          <div class="metric-icon"><i class="bi bi-bullseye"></i></div>
+          <div class="metric-name">R&sup2;</div>
+          <div class="metric-value">{{ '%.2f'|format(metrics.r2) }}</div>
+          <p>Sekitar {{ (metrics.r2 * 100)|round(1) }}% variasi tip dapat dijelaskan oleh total tagihan.</p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3 reveal">
+        <div class="card-soft metric h-100">
+          <div class="metric-icon"><i class="bi bi-rulers"></i></div>
+          <div class="metric-name">RMSE</div>
+          <div class="metric-value">${{ '%.2f'|format(metrics.rmse) }}</div>
+          <p>Rata-rata prediksi meleset sekitar ${{ '%.2f'|format(metrics.rmse) }} dari tip sebenarnya.</p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3 reveal">
+        <div class="card-soft metric h-100">
+          <div class="metric-icon"><i class="bi bi-graph-up"></i></div>
+          <div class="metric-name">Koefisien</div>
+          <div class="metric-value">{{ '%.4f'|format(metrics.coef) }}</div>
+          <p>Setiap kenaikan $1 tagihan, tip naik sekitar ${{ '%.2f'|format(metrics.coef) }}.</p>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3 reveal">
+        <div class="card-soft metric h-100">
+          <div class="metric-icon"><i class="bi bi-flag"></i></div>
+          <div class="metric-name">Intersep</div>
+          <div class="metric-value">{{ '%.4f'|format(metrics.intercept) }}</div>
+          <p>Titik awal garis regresi saat tagihan 0. Secara praktis hanya acuan matematis.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-soft p-4 mt-4 reveal equation">
+      <div class="small text-muted-soft mb-1">Persamaan model</div>
+      <div class="eq">tip = {{ '%.4f'|format(metrics.intercept) }} + {{ '%.4f'|format(metrics.coef) }} &times; total_bill</div>
+    </div>
+        <div class="card-soft p-3 p-md-4 mt-4 reveal">
+      <h3 class="h5 mb-3">Ringkasan Metrik Evaluasi</h3>
+      <div class="table-responsive">
+        <table class="table table-tips align-middle mb-0">
+          <thead><tr><th>Metrik</th><th>Nilai</th><th>Arti</th></tr></thead>
+          <tbody>
+            <tr><td>MAE</td><td>${{ '%.2f'|format(metrics.mae) }}</td><td>Rata-rata selisih absolut antara prediksi dan nilai aktual.</td></tr>
+            <tr><td>MSE</td><td>{{ '%.2f'|format(metrics.rmse ** 2) }} USD&sup2;</td><td>Rata-rata kuadrat selisih, memberi bobot lebih pada kesalahan besar.</td></tr>
+            <tr><td>RMSE</td><td>${{ '%.2f'|format(metrics.rmse) }}</td><td>Akar dari MSE, kembali ke satuan asli (USD).</td></tr>
+            <tr><td>R&sup2;</td><td>{{ '%.2f'|format(metrics.r2) }}</td><td>Proporsi variasi tip yang dijelaskan model (0 sampai 1).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card-soft p-4 mt-4 reveal limit-card">
+      <h3 class="h5 mb-3"><i class="bi bi-info-circle me-2"></i>Catatan dan Keterbatasan</h3>
+      <ul>
+        <li>R&sup2; sekitar {{ '%.2f'|format(metrics.r2) }} berarti sisa variasi tip dipengaruhi faktor lain yang tidak dipakai (misalnya jumlah orang dan kebiasaan pelanggan).</li>
+        <li>Model ini regresi linear sederhana: hanya satu variabel input (<code>total_bill</code>).</li>
+        <li>Prediksi di luar rentang ${{ '%.2f'|format(metrics.x_min) }} - ${{ '%.2f'|format(metrics.x_max) }} kurang andal karena di luar data latih.</li>
+        <li>Datanya sampel terbatas ({{ metrics.n_total }} transaksi) dalam dolar AS, sehingga belum tentu mewakili restoran lain.</li>
+        <li>Hubungan tagihan dan tip adalah hubungan statistik, bukan jaminan bahwa tip selalu sebesar hasil prediksi.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- DATASET -->
+<section id="dataset">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">Dataset</span>
+      <h2>Data yang Digunakan</h2>
+      <p class="text-muted-soft">
+        <a class="link-accent" href="https://www.kaggle.com/datasets/saurabhbadole/restaurant-tips-dataset" target="_blank" rel="noopener">Restaurant Tips Dataset (Kaggle)</a>
+        &middot; {{ stats.rows }} baris &middot; {{ stats.cols }} kolom
+      </p>
+    </div>
+
+    <div class="row g-3 mb-4 reveal">
+      <div class="col-6 col-md-3"><div class="card-soft mini"><span>Rata-rata tagihan</span><strong>${{ stats.bill_mean }}</strong></div></div>
+      <div class="col-6 col-md-3"><div class="card-soft mini"><span>Rata-rata tip</span><strong>${{ stats.tip_mean }}</strong></div></div>
+      <div class="col-6 col-md-3"><div class="card-soft mini"><span>Variabel X</span><strong>total_bill</strong></div></div>
+      <div class="col-6 col-md-3"><div class="card-soft mini"><span>Variabel y</span><strong>tip</strong></div></div>
+    </div>
+
+    <div class="card-soft p-2 p-md-3 reveal">
+      <div class="table-responsive">
+        <table class="table table-tips align-middle mb-0">
+          <thead>
+            <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in preview %}
+            <tr>{% for c in columns %}<td>{{ row[c] }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="small text-muted-soft px-2 pt-2">Menampilkan 8 baris pertama.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="container">
+    <div class="section-head reveal">
+      <span class="eyebrow">FAQ</span>
+      <h2>Pertanyaan Umum</h2>
+    </div>
+    <div class="accordion accordion-soft reveal" id="faqAcc">
+      <div class="accordion-item">
+        <h3 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">Apa itu regresi linear sederhana?</button></h3>
+        <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAcc"><div class="accordion-body">Metode untuk memodelkan hubungan garis lurus antara satu variabel input (X) dan satu variabel output (y). Di sini X adalah total tagihan dan y adalah besar tip.</div></div>
+      </div>
+      <div class="accordion-item">
+        <h3 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">Apa arti R&sup2; pada model ini?</button></h3>
+        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAcc"><div class="accordion-body">R&sup2; menunjukkan berapa persen variasi tip yang dapat dijelaskan oleh total tagihan. Nilainya {{ '%.2f'|format(metrics.r2) }}, artinya sekitar {{ (metrics.r2 * 100)|round(1) }}%.</div></div>
+      </div>
+      <div class="accordion-item">
+        <h3 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">Mengapa hasil prediksi bisa berbeda dari tip sebenarnya?</button></h3>
+        <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAcc"><div class="accordion-body">Model hanya memakai total tagihan. Faktor lain seperti pelayanan dan kebiasaan pelanggan tidak ikut dihitung, sehingga prediksi rata-rata meleset sekitar ${{ '%.2f'|format(metrics.rmse) }} (RMSE).</div></div>
+      </div>
+      <div class="accordion-item">
+        <h3 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">Bolehkah mengisi tagihan di luar rentang data?</button></h3>
+        <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAcc"><div class="accordion-body">Boleh, tetapi hasilnya kurang andal. Model dilatih pada tagihan ${{ '%.2f'|format(metrics.x_min) }} sampai ${{ '%.2f'|format(metrics.x_max) }}, dan aplikasi akan menampilkan peringatan di luar rentang itu.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
